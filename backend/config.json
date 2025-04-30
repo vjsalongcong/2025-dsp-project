@@ -1,0 +1,25 @@
+{
+    "calibration": {
+        "temperature": -5,
+        "humidity": 0,
+        "carbon_dioxide": 0,
+        "carbon_monoxide": 0,
+        "nitrogen_dioxide": 0,
+        "ammonia": 0
+    },
+    "thresholds": {
+        "max-temperature": 25,
+        "min-temperature": 15,
+        "max-humidity": 65,
+        "min-humidity": 25,
+        "carbon_dioxide": 1000,
+        "carbon_monoxide": 0,
+        "nitrogen_dioxide": 0,
+        "ammonia": 0
+    },
+    "mqtt": {
+        "broker": "192.168.8.114",
+        "port": 1883,
+        "topic": "raspberrypi/mqtt"
+    }
+}
