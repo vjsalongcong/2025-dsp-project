@@ -1,0 +1,174 @@
+substitutions:
+  name: "esphome-web-4a7330"
+  friendly_name: "esphome-web-4a7330"
+  run_time: 60s
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  min_version: 2024.6.0
+  name_add_mac_suffix: false
+  platformio_options:
+    board_build.f_flash: 80000000L
+    board_build.flash_mode: qio
+    board_build.psram_type: opi
+    board_build.partitions: default_16MB.csv
+    board_build.arduino.memory_type: qio_opi
+  project:
+    name: esphome.web
+    version: dev
+  libraries:
+    - SPI
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+  flash_size: 16MB
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+# Allow Over-The-Air updates
+ota:
+  - platform: esphome
+
+# Allow provisioning Wi-Fi via serial
+improv_serial:
+
+wifi:
+  ssid: "SALONGCONG.GL"
+  password: "CpQo$$^19C49"
+  # Set up a wifi access point
+  ap: {}
+
+# In combination with the `ap` this allows the user
+# to provision wifi credentials to the device via WiFi AP.
+captive_portal:
+
+dashboard_import:
+  package_import_url: github://esphome/firmware/esphome-web/esp32s3.yaml@main
+  import_full_config: true
+
+# Sets up Bluetooth LE (Only on ESP32) to allow the user
+# to provision wifi credentials to the device.
+esp32_improv:
+  authorizer: none
+
+# To have a "next url" for improv serial
+web_server:
+
+# lilygo stuff
+external_components:
+  # https://github.com/nickolay/esphome-lilygo-t547plus
+  - source: github://nickolay/esphome-lilygo-t547plus
+    components: ["t547"]
+
+i2c:
+  - id: bus_a
+    sda: GPIO18
+    scl: GPIO17
+    frequency: 100khz
+    # There is some problems with i2c scan so turn scan off if problem appear on your board
+    scan: False
+
+time:
+  - platform: pcf8563
+    id: internal_clock
+    address: 0x51
+    i2c_id: bus_a
+  - platform: homeassistant
+    id: ha_time
+    on_time_sync:
+      then:
+        - pcf8563.write_time
+
+http_request:
+  verify_ssl: false
+  timeout: 10s
+
+sensor:
+  - platform: template
+    name: "Temperature"
+    id: temp_level
+    unit_of_measurement: "°C"
+  - platform: template
+    name: "Humidity"
+    id: humidity_level
+    unit_of_measurement: "%"
+  - platform: template
+    name: "CO2 Level"
+    id: co2_level
+    unit_of_measurement: "ppm"
+
+text_sensor:
+  - platform: template
+    name: "IAQ Status"
+    id: iaq_status
+
+interval:
+  - interval: 60s
+    then:
+    - http_request.get:
+        url: http://192.168.8.244:5500/sensor_data
+        capture_response: true
+        on_response:
+          then:
+            - lambda: |-
+                json::parse_json(body, [](JsonObject root) -> bool {
+                  id(temp_level).publish_state(root["temperature"]);
+                  return true;
+                });
+                json::parse_json(body, [](JsonObject root) -> bool {
+                  id(humidity_level).publish_state(root["humidity"]);
+                  return true;
+                });
+                json::parse_json(body, [](JsonObject root) -> bool {
+                  id(co2_level).publish_state(root["co2"]);
+                  return true;
+                });
+                json::parse_json(body, [](JsonObject root) -> bool {
+                  id(iaq_status).publish_state(root["iaq_health"]);
+                  return true;
+                });
+
+image:
+  - file: "layouts/ePaper-Healthy.png"
+    type: GRAYSCALE
+    invert_alpha: true
+    id: bg_healthy
+  - file: "layouts/ePaper-Dead.png"
+    type: GRAYSCALE
+    invert_alpha: true
+    id: bg_dead
+
+font:
+  - file: fonts/GoogleSans-Bold.ttf
+    id: font_date
+    size: 64
+
+display:
+  - platform: t547
+    id: t5_display
+    update_interval: 60s
+    rotation: 90
+    lambda: |-
+
+      // Set background depending on IAQ status
+      if (id(iaq_status).state == "good") {
+        it.image(0, 0, id(bg_healthy));
+      } else {
+        it.image(0, 0, id(bg_dead));
+      }
+
+      // Temperature Card Value
+      it.printf(35, 130, id(font_date), TextAlign::LEFT, "%.1f °C", id(temp_level).state);
+
+      // Humidity Card Value
+      it.printf(290, 130, id(font_date), TextAlign::LEFT, "%.1f %%", id(humidity_level).state);
+
+      // Carbon Dioxide Card Value
+      it.printf(35, 305, id(font_date), TextAlign::LEFT, "%.f PPM", id(co2_level).state);
