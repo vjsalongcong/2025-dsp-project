@@ -4,9 +4,6 @@
     export let alt;
     export let value;
     export let unit = "";
-
-    // Simple check if the icon is a string
-    let iconIsString = typeof icon === 'string';
 </script>
 
 <div class="p-4 flex-1 rounded-lg items-center justify-center bg-white shadow-lg">
