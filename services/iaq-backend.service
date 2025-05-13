@@ -1,0 +1,15 @@
+[Unit]
+Description=IAQ Backend App
+After=network.target
+
+[Service]
+User=vuj
+WorkingDirectory=/home/vuj/project/backend
+ExecStart=/home/vuj/project/.venv/bin/python /home/vuj/project/backend/app.py
+Restart=on-failure
+RestartSec=5
+KillMode=mixed
+Environment=FLASK_ENV=production
+
+[Install]
+WantedBy=multi-user.target
