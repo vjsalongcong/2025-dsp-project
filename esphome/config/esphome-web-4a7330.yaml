@@ -113,7 +113,7 @@ interval:
   - interval: 60s
     then:
     - http_request.get:
-        url: http://192.168.8.244:5500/sensor_data
+        url: http://192.168.8.211:5500/sensor_data
         capture_response: true
         on_response:
           then:
