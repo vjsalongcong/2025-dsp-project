@@ -1,6 +1,6 @@
 # IAQ systemd service files
 
-## !! Info
+## Prerequisites
 Before copying and enabling the service files you will need to change the directory paths and the username `vuj` to your own directory and username.
 
 ## Copying systemd files into `/etc/systemd/system/`

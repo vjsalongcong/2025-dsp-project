@@ -2,6 +2,7 @@
     import io from 'socket.io-client';
 	import { onMount } from 'svelte';
     import { timestampValue, iaqStatus } from '$lib/logic/stores.js';
+    import { flaskHost, flaskPort, flaskREST, flaskWebSocket } from '$lib/logic/host';
     
     // Import components
 	import InfoCard from '$lib/components/InfoCard.svelte';
@@ -9,12 +10,6 @@
     // Import icons
     import droplet from '$lib/icons/droplet-fill.svg';
     import thermometer from '$lib/icons/thermometer.svg';
-
-    // Flask host details
-	const flaskHost = $state('192.168.86.91');
-	const flaskPort = $state('5500');
-	const flaskREST = $state('sensor_data')
-	const flaskWebSocket = $state('sensor_update')
 
 	// Initialise variables
 	let co2Value = $state('...');

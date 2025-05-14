@@ -1,0 +1,16 @@
+[Unit]
+Description=IAQ Frontend App
+After=network.target
+
+[Service]
+User=vuj
+WorkingDirectory=/home/vuj/project/frontend
+ExecStart=/home/vuj/.nvm/versions/node/v22.13.1/bin/npm run preview -- --host --port=5173
+Restart=always
+RestartSec=5
+KillMode=mixed
+Environment=NODE_ENV=production
+Environment=PATH=/home/vuj/.nvm/versions/node/v22.13.1/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=multi-user.target

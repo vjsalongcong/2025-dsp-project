@@ -20,6 +20,8 @@
     "mqtt": {
         "broker": "192.168.8.114",
         "port": 1883,
-        "topic": "raspberrypi/mqtt"
+        "topic": "raspberrypi/mqtt",
+        "username": "raspberrypi",
+        "password": ""
     }
 }

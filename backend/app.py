@@ -1,6 +1,6 @@
 
 from datetime import datetime
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_socketio import SocketIO
 import random
 import threading
@@ -19,7 +19,6 @@ try:
         calibration = config["calibration"]
         thresholds = config["thresholds"]
         mqtt = config["mqtt"]
-        
 except (FileNotFoundError, json.JSONDecodeError) as e:
     print(f"Config error: {e}")
     exit(1)
@@ -70,15 +69,31 @@ class SensorReader:
     
 class MQTTClientHandler:
     def __init__(self):
+        # Initialise MQTT state
+        self.established = False
+        self.client = None
+        self.update_config(mqtt)
+            
+    def update_config(self, config_mqtt):
+        # Check if client is connected
+        if self.client:
+            try:
+                self.client.loop_stop()
+                self.client.disconnect()
+                print("MQTT: Existing connection stopped")
+            except Exception as e:
+                print(f"MQTT: Error disconnecting previous client - {e}")
+                
         # Initialise MQTT details
-        self.broker = mqtt["broker"]
-        self.port = mqtt["port"]
-        self.topic = mqtt["topic"]
+        self.broker = config_mqtt["broker"]
+        self.port = config_mqtt["port"]
+        self.topic = config_mqtt["topic"]
         self.client_id = f'raspberrypi-{random.randint(0, 1000)}'
         self.client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION2, self.client_id)
         
         # Attempt to connect
         try:
+            self.client.username_pw_set(config_mqtt["username"], config_mqtt["password"])
             self.client.connect(self.broker, self.port)
             self.client.loop_start()
             print("MQTT: Connection to broker established")
@@ -87,7 +102,6 @@ class MQTTClientHandler:
             print("MQTT: There was an error establishing connection")
             self.established = False
             
-
     def publish(self, message):
         # Publish data
         if self.established == True:
@@ -133,14 +147,137 @@ sensor_reader = SensorReader()
 mqtt_handler = MQTTClientHandler()
 sensor_service = SensorService(sensor_reader, data_cache, mqtt_handler, socketio)
 
+# Index page to see if Flask is running
 @app.route('/')
 def index():
     return "Flask server is running"
 
+# Route to retrieve cached sensor data
 @app.route('/sensor_data', methods=['GET'])
 def get_sensor_data():
     return jsonify(data_cache.get())
 
+# Route to retrieve calibration settings
+@app.route('/api/iaq-calibration', methods=['GET', 'POST'])
+def settings_iaq_calibration():
+    global config, calibration
+    
+    if request.method == 'GET':
+        # Create data payload
+        data_payload = {
+            "temperature": calibration["temperature"],
+            "humidity": calibration["humidity"],
+            "carbon_dioxide": calibration["carbon_dioxide"],
+            "carbon_monoxide": calibration["carbon_monoxide"],
+            "nitrogen_dioxide": calibration["nitrogen_dioxide"],
+            "ammonia": calibration["ammonia"]
+        }
+
+        # Return requested data
+        return jsonify(data_payload)
+    
+    if request.method == 'POST':
+        # Retrieve request
+        data = request.get_json()
+        
+        # Attempt to update data
+        try:
+            # Save data to config.json
+            config['calibration'] = data
+            with open("config.json", "w") as f:
+                json.dump(config, f, indent=4)
+            
+            # Re-read calibration section
+            with open("config.json", "r") as f:
+                config = json.load(f)
+                calibration = config["calibration"]
+                
+            return jsonify({'status': 'success'})
+        except:
+            return jsonify({'status': 'error'}), 400
+
+# Route to retrieve threshold settings
+@app.route('/api/iaq-threshold', methods=['GET', 'POST'])
+def settings_iaq_threshold():
+    global config, thresholds
+    
+    if request.method == 'GET':
+        # Create data payload
+        data_payload = {
+            "max-temperature": thresholds["max-temperature"],
+            "min-temperature": thresholds["min-temperature"],
+            "max-humidity": thresholds["max-humidity"],
+            "min-humidity": thresholds["min-humidity"],
+            "carbon_dioxide": thresholds["carbon_dioxide"],
+            "carbon_monoxide": thresholds["carbon_monoxide"],
+            "nitrogen_dioxide": thresholds["nitrogen_dioxide"],
+            "ammonia": thresholds["ammonia"]
+        }
+
+        # Return requested data
+        return jsonify(data_payload)
+    
+    if request.method == 'POST':
+        # Retrieve request
+        data = request.get_json()
+        
+        # Attempt to update data
+        try:
+            # Save data to config.json
+            config['thresholds'] = data
+            with open("config.json", "w") as f:
+                json.dump(config, f, indent=4)
+            
+            # Re-read thresholds section
+            with open("config.json", "r") as f:
+                config = json.load(f)
+                thresholds = config["thresholds"]
+                
+            return jsonify({'status': 'success'})
+        except:
+            return jsonify({'status': 'error'}), 400
+
+# Route to retrieve threshold settings
+@app.route('/api/mqtt', methods=['GET', 'POST'])
+def settings_mqtt():
+    global config, mqtt
+    
+    if request.method == 'GET':
+        # Create data payload
+        data_payload = {
+            "broker": mqtt["broker"],
+            "port": mqtt["port"],
+            "topic": mqtt["topic"],
+            "username": mqtt["username"],
+            "password": ""
+        }
+        
+        # Return requested data
+        return jsonify(data_payload)
+    
+    if request.method == 'POST':
+        # Retrieve request
+        data = request.get_json()
+        
+        # Attempt to update data
+        try:
+            # Save data to config.json
+            config['mqtt'] = data
+            with open("config.json", "w") as f:
+                json.dump(config, f, indent=4)
+            
+            # Re-read mqtt section
+            with open("config.json", "r") as f:
+                config = json.load(f)
+                mqtt = config["mqtt"]
+            
+            # Reconnect mqtt
+            mqtt_handler.update_config(mqtt)
+                
+            return jsonify({'status': 'success'})
+        except:
+            return jsonify({'status': 'error'}), 400
+
 if __name__ == '__main__':
     sensor_service.start()
-    socketio.run(app, host='0.0.0.0', port=5500)
+    socketio.run(app, host='0.0.0.0', port=5500, allow_unsafe_werkzeug=True)
